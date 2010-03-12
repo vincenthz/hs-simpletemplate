@@ -1,0 +1,14 @@
+Name:                simpletemplate
+Version:             0.1
+Description:         Simple and very efficient template with binary caching
+License:             LGPL
+License-file:        LICENSE
+Author:              Vincent Hanquez
+Maintainer:          vincent@snarc.org
+Build-Type:          Simple
+Cabal-Version:       >=1.2
+
+Library
+  Build-Depends:     base >= 3 && < 5, bytestring, binary
+  Exposed-modules:   Text.SimpleTemplate
+  ghc-options:       -Wall

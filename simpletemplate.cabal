@@ -9,6 +9,6 @@ Build-Type:          Simple
 Cabal-Version:       >=1.2
 
 Library
-  Build-Depends:     base >= 3 && < 5, bytestring, binary
+  Build-Depends:     base >= 3 && < 5, bytestring, binary, containers
   Exposed-modules:   Text.SimpleTemplate
   ghc-options:       -Wall

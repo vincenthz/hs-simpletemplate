@@ -39,10 +39,11 @@ import Data.Binary
 import Data.ByteString.Lazy.Char8 (ByteString)
 import Data.Char (isDigit, isAlpha)
 import Data.Maybe (catMaybes)
+import qualified Data.Map as M
 
-data TAtom = Text ByteString | Var String deriving (Show)
+data TAtom = Text ByteString | Var ByteString deriving (Show)
 type Template = [TAtom]
-type TGroup = [(String,Template)]
+type TGroup = M.Map ByteString Template
 
 instance Binary TAtom where
 	put (Text s) = putWord8 0 >> put s
@@ -62,10 +63,10 @@ tailSafe s
 isVariableChar :: Char -> Bool
 isVariableChar c = isAlpha c || isDigit c
 
-isVariable :: String -> Bool
-isVariable = and . map isVariableChar
+isVariable :: ByteString -> Bool
+isVariable = and . map isVariableChar . B.unpack
 
-getVariable :: TAtom -> Maybe String
+getVariable :: TAtom -> Maybe ByteString
 getVariable (Var s) = Just s
 getVariable _       = Nothing
 
@@ -74,9 +75,8 @@ parseVar s
 	| B.null s  = []
 	| otherwise =
 		let (b, a) = B.break ((==) '$') s in
-		let bu = B.unpack b in
-		if isVariable bu
-			then Var bu : (parseText $ tailSafe a)
+		if isVariable b
+			then Var b  : (parseText $ tailSafe a)
 			else Text b : (parseVar $ tailSafe a)
 
 parseText :: ByteString -> Template
@@ -93,35 +93,35 @@ parseTemplate s
 	| B.head s == '$' = parseVar $ B.tail s
 	| otherwise       = parseText s
 
-parseTGroupHelper :: String -> [ByteString] -> [ByteString] -> [(String, Template)]
+parseTGroupHelper :: ByteString -> [ByteString] -> [ByteString] -> [(ByteString, Template)]
 parseTGroupHelper cat accu []          = [ (cat, parseTemplate $ B.unlines $ reverse accu) ]
 parseTGroupHelper cat accu (line : ls) =
 	if B.length line >= 2 && B.head line == '[' && B.last line == ']'
 		then
 			let newcat = B.init $ B.tail line in
-			if cat == ""
-				then parseTGroupHelper (B.unpack newcat) [] ls
-				else (cat, parseTemplate $ B.unlines $ reverse accu) : parseTGroupHelper (B.unpack newcat) [] ls
+			if cat == B.empty
+				then parseTGroupHelper newcat [] ls
+				else (cat, parseTemplate $ B.unlines $ reverse accu) : parseTGroupHelper newcat [] ls
 		else
 			parseTGroupHelper cat (line : accu) ls
 
 {- parse a byteString to a tgroup
  - FIXME: this isn't really nice. probably move this to a more streamish computation -}
 parseTGroup :: ByteString -> TGroup
-parseTGroup content = parseTGroupHelper "" [] $ B.lines content
+parseTGroup content = M.fromList $ parseTGroupHelper B.empty [] $ B.lines content
 
 {- get all variables : mainly for debugging purpose -}
-getVariables :: Template -> [String]
+getVariables :: Template -> [ByteString]
 getVariables = catMaybes . map getVariable
 
 {- render one Atom -}
-renderAtom :: [(String, ByteString)] -> TAtom -> ByteString
-renderAtom _ (Text b) = b
-renderAtom attrs (Var s) = maybe B.empty id $ lookup s attrs
+renderAtom :: M.Map ByteString ByteString -> TAtom -> ByteString
+renderAtom _     (Text b) = b
+renderAtom attrs (Var s)  = M.findWithDefault B.empty s attrs
 
 {- take a template and attributes and create a bytestring where all template variables
  - has been replaced by the attributes -}
-renderTemplate :: Template -> [(String, ByteString)] -> ByteString
+renderTemplate :: Template -> M.Map ByteString ByteString -> ByteString
 renderTemplate template attrs =
 	B.concat $ map (renderAtom attrs) template
 
@@ -135,8 +135,8 @@ unmarshallTemplate = map decode . decode
 
 {- marshall a tgroup to a binary bytestring -}
 marshallTGroup :: TGroup -> ByteString
-marshallTGroup = encode . map encode
+marshallTGroup = encode . map encode . M.toList
 
 {- unmarshall a tgroup from a binary bytestring -}
 unmarshallTGroup :: ByteString -> TGroup
-unmarshallTGroup = map decode . decode
+unmarshallTGroup = M.fromList . map decode . decode

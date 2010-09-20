@@ -99,7 +99,7 @@ parseTGroupHelper cat accu (line : ls) =
 	if B.length line >= 2 && B.head line == '[' && B.last line == ']'
 		then
 			let newcat = B.init $ B.tail line in
-			if cat /= ""
+			if cat == ""
 				then parseTGroupHelper (B.unpack newcat) [] ls
 				else (cat, parseTemplate $ B.unlines $ reverse accu) : parseTGroupHelper (B.unpack newcat) [] ls
 		else

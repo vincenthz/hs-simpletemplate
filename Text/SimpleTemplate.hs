@@ -14,7 +14,7 @@
 {- |
    Module      : Text.SimpleTemplate
    Copyright   : Copyright (C) 2009-2010 Vincent Hanquez
-   License     : GNU LGPL, version 2.1
+   License     : BSD3
    Maintainer  : Vincent Hanquez <vincent@snarc.org>
    Stability   : alpha
    Portabily   : haven't tested
@@ -57,7 +57,7 @@ instance Binary TAtom where
 
 tailSafe :: ByteString -> ByteString
 tailSafe s
-	| B.null s = B.empty
+	| B.null s  = B.empty
 	| otherwise = B.tail s
 
 isVariableChar :: Char -> Bool
@@ -82,9 +82,9 @@ parseVar s
 parseText :: ByteString -> Template
 parseText s
 	| B.null s  = []
-	| otherwise =
-		let (b, a) = B.break ((==) '$') s in
-		Text b : (parseVar $ tailSafe a)
+	| otherwise = Text b : (parseVar $ tailSafe a)
+		where
+			(b, a) = B.break ((==) '$') s
 
 {- parse a byteString to a template -}
 parseTemplate :: ByteString -> Template
